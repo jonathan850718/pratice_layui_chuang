@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>稅率與坪數計算器測試</title>
+    <link rel="stylesheet" href="./layui/css/layui.css" />
+    <script src="./layui/layui.js"></script>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      .layui-layout-admin .layui-header {
+        background-color: #686868;
+        color: white;
+      }
+      .layui-layout-admin .layui-side {
+        background-color: #2a6bc0;
+      }
+      .layui-layout-admin .layui-body {
+        background-color: #f5f5f5;
+        padding: 20px;
+      }
+      .content-area {
+        background: white;
+        padding: 20px;
+        border-radius: 5px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        min-height: 500px;
+      }
+      .layui-nav-tree .layui-nav-item a {
+        color: #ffffff;
+      }
+      .layui-nav-tree .layui-nav-item a:hover {
+        background-color: #4e5465;
+      }
+      .layui-nav-tree .layui-this a {
+        background-color: #5ad77e !important;
+      }
+      .page-content {
+        display: none;
+      }
+      .page-content.active {
+        display: block;
+      }
+    </style>
+  </head>
+  <body class="layui-layout-body">
+    <div class="layui-layout layui-layout-admin">
+      <!-- 頂部區域 -->
+      <div class="layui-header">
+        <div class="layui-logo" style="color: white; font-size: 20px; font-weight: bold">稅率與坪數計算器</div>
+      </div>
+
+      <!-- 左側導航區域 -->
+      <div class="layui-side layui-bg-black">
+        <div class="layui-side-scroll">
+          <ul class="layui-nav layui-nav-tree" lay-filter="menu">
+            <li class="layui-nav-item layui-this">
+              <a href="javascript:;" data-page="tax-calc">稅率計算</a>
+            </li>
+            <li class="layui-nav-item">
+              <a href="javascript:;" data-page="area-calc">坪數計算</a>
+            </li>
+            <li class="layui-nav-item">
+              <a href="javascript:;" data-page="combined-calc">綜合計算</a>
+            </li>
+            <li class="layui-nav-item">
+              <a href="javascript:;" data-page="calc-history">計算記錄</a>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- 內容主體區域 -->
+      <div class="layui-body">
+        <div class="content-area">
+          <!-- 稅率計算頁面 -->
+          <div class="layui-card">
+            <div class="layui-card-header">
+              <h2>稅率計算表</h2>
+            </div>
+            <div id="tax-calc" class="page-content">
+              <div>
+                <!-- <div class="layui-card-body">
+                  <div class="layui-btn-container" style="margin-bottom: 15px">
+                    <button class="layui-btn" lay-event="add"><i class="layui-icon">&#xe654;</i> 新增欄位</button>
+                    <button class="layui-btn layui-bg-red" lay-event="delete" data-tools="deleteSelected"><i class="layui-icon">&#xe640;</i> 刪除選中</button>
+                    <button class="layui-btn layui-bg-blue" lay-event=""><i class="layui-icon">&#xe629;</i> 重新計算</button>
+                  </div>
+                </div> -->
+                <table id="calculationTable"></table>
+              </div>
+            </div>
+          </div>
+          <!-- 坪數計算頁面 -->
+          <div id="area-calc" class="page-content" style="display: none">
+            <h2>坪數計算</h2>
+            <p>這裡是坪數計算功能頁面</p>
+            <p>你可以在這裡添加坪數計算的表單和邏輯</p>
+          </div>
+
+          <!-- 綜合計算頁面 -->
+          <div id="combined-calc" class="page-content" style="display: none">
+            <h2>綜合計算</h2>
+            <p>這裡是綜合計算功能頁面</p>
+            <p>你可以在這裡添加綜合計算的表單和邏輯</p>
+          </div>
+
+          <!-- 計算記錄頁面 -->
+          <div id="calc-history" class="page-content" style="display: none">
+            <h2>計算記錄</h2>
+            <p>這裡是計算記錄功能頁面</p>
+            <p>你可以在這裡顯示之前的計算記錄</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- 工具栏模板 -->
+    <script type="text/html" id="toolbar">
+      <div class="layui-btn-container">
+        <button class="layui-btn" lay-event="add"><i class="layui-icon">&#xe654;</i> 新增欄位</button>
+        <button class="layui-btn layui-bg-red" lay-event="delete" data-tools="deleteSelected"><i class="layui-icon">&#xe640;</i> 刪除選中</button>
+        <button class="layui-btn layui-bg-blue" lay-event="calculate"><i class="layui-icon">&#xe629;</i> 重新計算</button>
+      </div>
+    </script>
+    <script>
+      let tableData = [];
+      let nextId = 1;
+      // 監聽導航點擊
+      layui.use(["element", "layer"], function () {
+        const element = layui.element;
+        const layer = layui.layer;
+
+        function switchpages(pageId) {
+          // 隱藏所有頁面
+          const allPages = document.querySelectorAll(".page-content");
+          allPages.forEach(function (page) {
+            page.style.display = "none";
+          });
+
+          const targetpage = document.getElementById(pageId);
+
+          if (targetpage) {
+            targetpage.style.display = "block";
+          }
+        }
+        // 初始化顯示第一個頁面
+        switchpages("tax-calc");
+
+        element.on("nav(menu)", function (elem) {
+          const text = elem.text();
+          const targetid = elem.attr("data-page");
+          layer.msg("切換到：" + text);
+          switchpages(targetid);
+          // 這裡你可以加入頁面切換的邏輯
+        });
+      });
+
+      layui.use(["element", "table"], function () {
+        const element = layui.element;
+        const table = layui.table;
+
+        const renderTable = () => {
+          table.render({
+            elem: "#calculationTable",
+            toolbar: "#toolbar",
+            totalRow: true,
+            cols: [
+              [
+                { type: "checkbox" }, // 複選框欄位
+                { type: "numbers", title: "編號", width: 80 },
+                { field: "id", title: "nextId", width: 80, hide: true },
+                { field: "price", title: "金額", width: 150, edit: "text" },
+                { field: "taxRate", title: "稅率", width: 80, edit: "text" },
+                { field: "taxAmount", title: "個別稅額", width: 120, edit: "text" },
+                { field: "total", title: "合計", width: 150, edit: "text" },
+              ],
+            ],
+            data: tableData,
+            height: 1000,
+            limit: 1000, // 避免分頁
+            done: function () {
+              var id = this.id;
+            },
+          });
+        };
+        renderTable();
+        // 執行 render
+        table.on("toolbar(calculationTable)", function (obj) {
+          var options = obj.config;
+          var checkStatus = table.checkStatus("calculationTable");
+          //var checkStatus = table.checkStatus("tableReload");
+          switch (obj.event) {
+            case "add":
+            tableData = tableData.filter(function(item){
+                return item.id !== "total_Row"
+              })
+              
+              tableData.push({
+                id: nextId++,
+                price: "",
+                taxRate: "5",
+                taxAmount: "",
+                total: "",
+              });
+              renderTable();
+              layer.msg("添加，若已合計請接續編號寫下去");
+              break;
+            case "delete":
+              //layer.msg("刪除");
+              //console.log(checkStatus)
+              var selectedData = checkStatus.data;
+              console.log(selectedData);
+              if (selectedData.length === 0) {
+                return layer.msg("請選擇要刪除的資料");
+              }
+
+              layer.confirm("確定要刪除選中的" + selectedData.length + "筆資料嗎？", function (index) {
+                var selectedIds = selectedData.map(function (item) {
+                  return item.id;
+                });
+                tableData = tableData.filter(function (item) {
+                  return !selectedIds.includes(item.id);
+                });
+
+                renderTable();
+
+                layer.close(index);
+                layer.msg("刪除成功");
+              });
+              // const selected = table.checkStatus("tableReload").data;
+              // if(selected.length === 0){
+              //   return layer.msg("請選擇要刪除的資料")
+              // }
+              // tableData = tableData.filter(row => !selected.includes(row))
+              // renderTable();
+              break;
+            case "calculate":
+              //移除之前的合計行
+              tableData = tableData.filter(function(item){
+                return item.id !== "total_Row"
+              })
+
+              var currentTableData = table.cache.calculationTable;
+              //計算總額
+              let priceSum = 0;
+              let taxAmountSum = 0;
+              let totalSum = 0;
+
+              currentTableData.forEach(function (item, index) {
+                //計算稅額
+                var taxAmount = parseFloat(item.price || 0) * parseFloat(item.taxRate || 0) * 0.01;
+                item.taxAmount = taxAmount.toFixed(0);
+                //計算合計
+                let total = 0;
+                let total_taxAmount = parseFloat(item.taxAmount) || 0;
+                let total_price = parseFloat(item.price) || 0;
+                total = Math.round(total_taxAmount + total_price);
+                item.total = total.toFixed(0);
+
+                priceSum += Math.round(parseFloat(total_price ||0).toFixed(0))
+                taxAmountSum += Math.round(parseFloat(taxAmount ||0).toFixed(0))
+                totalSum += Math.round(parseFloat(total ||0).toFixed(0))
+                
+              });
+             
+
+              
+
+              tableData.push({
+                id: "total_Row",
+                price: priceSum,
+                taxRate: "",
+                taxAmount: taxAmountSum,
+                total: totalSum,
+              });
+
+
+              table.reload("calculationTable", {
+                data: tableData,
+              });
+
+              console.log();
+              layer.msg("已更新計算結果");
+
+              break;
+          }
+        });
+
+        // table.on('edit(calculationTable)',function(obj){
+        //   var datacache = obj.datacache
+        //   console.log(datacache)
+        // })
+      });
+    </script>
+  </body>
+</html>
